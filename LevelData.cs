@@ -1,23 +1,20 @@
-﻿using UnityEngine;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 
-[CreateAssetMenu(fileName = "NewLevel", menuName = "TripleMatch/Level Data")]
-public class LevelData : ScriptableObject
+[Serializable]
+public class TileEntry
 {
-    public string levelName;
-    public List<LevelTileData> tiles = new List<LevelTileData>();
+    public string itemName;
+    public float x;
+    public float y;
+    public int layer;
+}
 
-    // Lấy width/height của từng layer
-    public Vector2Int GetLayerSize(int layerIndex)
-    {
-        int maxX = 0, maxY = 0;
-        foreach (LevelTileData t in tiles)
-        {
-            if (t.layerIndex != layerIndex) continue;
-            if (t.x > maxX) maxX = t.x;
-            if (t.y > maxY) maxY = t.y;
-        }
-        return new Vector2Int(maxX + 1, maxY + 1);
-    }
+[Serializable]
+public class LevelData
+{
+    public int levelId;
+    public float timeLimit;
+    public int maxSlots;
+    public List<TileEntry> tiles;
 }
