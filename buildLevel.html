@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tile Master — Level Editor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f4f0;color:#1a1a18;min-height:100vh;padding:1rem}
+h1{font-size:18px;font-weight:500;margin-bottom:1rem;color:#1a1a18}
+.app{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.sidebar{width:180px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+.main{flex:1;min-width:300px;display:flex;flex-direction:column;gap:12px}
+.card{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:1rem}
+.card h3{font-size:12px;font-weight:500;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em}
+.tile-btn{width:100%;padding:7px 10px;border-radius:8px;border:0.5px solid #ddd;background:#f5f4f0;cursor:pointer;font-size:13px;font-weight:500;color:#1a1a18;display:flex;align-items:center;gap:8px;transition:background 0.1s}
+.tile-btn:hover{background:#eae9e5}
+.tile-btn.active{border:2px solid #185FA5;background:#E6F1FB;color:#185FA5}
+.tile-dot{width:18px;height:18px;border-radius:4px;flex-shrink:0}
+.layer-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.layer-tab{padding:5px 14px;border-radius:8px;border:0.5px solid #ddd;background:#f5f4f0;cursor:pointer;font-size:13px;font-weight:500;color:#888}
+.layer-tab.active{background:#E6F1FB;color:#185FA5;border-color:#185FA5}
+.grid-wrap{overflow:auto}
+.grid{display:inline-grid;gap:3px;padding:4px;background:#f5f4f0;border-radius:8px;border:0.5px solid #ddd}
+.cell{width:44px;height:44px;border-radius:5px;border:0.5px solid #ddd;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;position:relative;user-select:none;transition:opacity 0.1s}
+.cell:hover{opacity:0.8;border-color:#999}
+.cell.empty{background:#f5f4f0}
+.cell .lbl{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-size:10px;font-weight:700}
+.row-nums{display:inline-grid;gap:3px;padding:4px 0}
+.row-num{width:20px;height:44px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#aaa}
+.col-nums{display:flex;gap:3px;padding:0 4px;margin-left:20px}
+.col-num{width:44px;text-align:center;font-size:11px;color:#aaa}
+.grid-outer{display:flex;gap:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:8px;border:0.5px solid #999;background:transparent;cursor:pointer;font-size:13px;font-weight:500;color:#1a1a18;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#f0efe9}
+.btn.primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.primary:hover{background:#0C447C}
+.btn.danger{color:#A32D2D;border-color:#F09595}
+.btn.danger:hover{background:#FCEBEB}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:#fff;border-radius:8px;padding:8px 12px;flex:1;min-width:70px;border:0.5px solid #ddd}
+.stat-val{font-size:20px;font-weight:500;color:#1a1a18}
+.stat-lbl{font-size:11px;color:#888;margin-top:2px}
+.warn{color:#BA7517}
+.ok{color:#3B6D11}
+textarea{width:100%;height:200px;font-family:monospace;font-size:11px;background:#f5f4f0;border:0.5px solid #ddd;border-radius:8px;padding:10px;color:#1a1a18;resize:vertical}
+.setting-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.setting-row label{font-size:13px;color:#666}
+.setting-row input[type=number]{width:70px;padding:4px 8px;border-radius:8px;border:0.5px solid #ddd;background:#f5f4f0;color:#1a1a18;font-size:13px;text-align:right}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity 0.2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<h1>Tile Master — Level Editor</h1>
+<div class="app">
+  <div class="sidebar">
+    <div class="card">
+      <h3>Tile</h3>
+      <div id="tile-palette" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div style="margin-top:8px;border-top:0.5px solid #eee;padding-top:8px">
+        <button class="tile-btn" id="btn-erase" onclick="selectTile(null)">
+          <div class="tile-dot" style="background:#f5f4f0;border:0.5px solid #ddd"></div>
+          Xóa tile
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Cài đặt level</h3>
+      <div class="setting-row"><label>Level ID</label><input type="number" id="cfg-id" value="1" min="1"></div>
+      <div class="setting-row"><label>Max slots</label><input type="number" id="cfg-slots" value="7" min="3" max="10"></div>
+      <div class="setting-row"><label>Time (giây)</label><input type="number" id="cfg-time" value="120" min="0"></div>
+    </div>
+    <div class="card">
+      <h3>Lưới</h3>
+      <div class="setting-row"><label>Cột</label><input type="number" id="cfg-cols" value="6" min="2" max="12" onchange="resizeGrid()"></div>
+      <div class="setting-row"><label>Hàng</label><input type="number" id="cfg-rows" value="6" min="2" max="12" onchange="resizeGrid()"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="card">
+      <h3 style="margin-bottom:8px">Layer</h3>
+      <div class="layer-tabs" id="layer-tabs"></div>
+    </div>
+    <div class="card">
+      <div id="grid-container"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="card">
+      <div class="actions" style="margin-bottom:10px">
+        <button class="btn primary" onclick="exportJSON()"><i class="ti ti-download"></i> Export JSON</button>
+        <button class="btn" onclick="downloadJSON()"><i class="ti ti-file-download"></i> Download file</button>
+        <button class="btn" onclick="clearLayer()"><i class="ti ti-trash"></i> Xóa layer</button>
+        <button class="btn danger" onclick="clearAll()"><i class="ti ti-refresh"></i> Reset</button>
+      </div>
+      <textarea id="json-output" placeholder="JSON sẽ hiện ở đây sau khi Export..." readonly></textarea>
+      <button class="btn" style="margin-top:8px;width:100%" onclick="copyJSON()"><i class="ti ti-copy"></i> Copy JSON</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TILES=[{name:'F1',color:'#E24B4A'},{name:'F2',color:'#378ADD'},{name:'F3',color:'#1D9E75'},{name:'F4',color:'#EF9F27'},{name:'F5',color:'#7F77DD'}];
+const MAX_LAYERS=5;
+let selectedTile=TILES[0],currentLayer=0,cols=6,rows=6,grids=[],isMouseDown=false;
+
+function initGrids(){grids=[];for(let l=0;l<MAX_LAYERS;l++)grids.push(Array.from({length:rows},()=>Array(cols).fill(null)));}
+
+function buildPalette(){
+  const el=document.getElementById('tile-palette');el.innerHTML='';
+  TILES.forEach(t=>{
+    const btn=document.createElement('button');
+    btn.className='tile-btn'+(selectedTile===t?' active':'');
+    btn.id='tile-btn-'+t.name;btn.onclick=()=>selectTile(t);
+    btn.innerHTML=`<div class="tile-dot" style="background:${t.color}"></div>${t.name}`;
+    el.appendChild(btn);
+  });
+}
+
+function selectTile(t){
+  selectedTile=t;
+  document.querySelectorAll('.tile-btn').forEach(b=>b.classList.remove('active'));
+  if(t){const btn=document.getElementById('tile-btn-'+t.name);if(btn)btn.classList.add('active');}
+  else document.getElementById('btn-erase').classList.add('active');
+}
+
+function buildLayerTabs(){
+  const el=document.getElementById('layer-tabs');el.innerHTML='';
+  for(let l=0;l<MAX_LAYERS;l++){
+    const tab=document.createElement('button');
+    tab.className='layer-tab'+(l===currentLayer?' active':'');
+    tab.textContent='Layer '+l;
+    tab.onclick=()=>{currentLayer=l;buildLayerTabs();renderGrid();};
+    el.appendChild(tab);
+  }
+}
+
+function renderGrid(){
+  cols=parseInt(document.getElementById('cfg-cols').value)||6;
+  rows=parseInt(document.getElementById('cfg-rows').value)||6;
+  const container=document.getElementById('grid-container');
+  let colNumsHtml='<div class="col-nums">';
+  for(let c=0;c<cols;c++)colNumsHtml+=`<div class="col-num">${c}</div>`;
+  colNumsHtml+='</div>';
+  let rowNumsHtml='<div class="row-nums">';
+  let gridHtml=`<div class="grid" style="grid-template-columns:repeat(${cols},44px)">`;
+  for(let r=rows-1;r>=0;r--){
+    rowNumsHtml+=`<div class="row-num">${r}</div>`;
+    for(let c=0;c<cols;c++){
+      const val=grids[currentLayer][r]&&grids[currentLayer][r][c];
+      const tile=val?TILES.find(t=>t.name===val):null;
+      const bg=tile?tile.color:'#f5f4f0';
+      gridHtml+=`<div class="cell" style="background:${bg}" data-r="${r}" data-c="${c}">${tile?`<span class="lbl">${tile.name}</span>`:''}</div>`;
+    }
+  }
+  rowNumsHtml+='</div>';gridHtml+='</div>';
+  container.innerHTML=colNumsHtml+`<div class="grid-outer">${rowNumsHtml}<div class="grid-wrap">${gridHtml}</div></div>`;
+  container.querySelectorAll('.cell').forEach(cell=>{
+    cell.addEventListener('mousedown',e=>{isMouseDown=true;paint(cell);e.preventDefault();});
+    cell.addEventListener('mouseover',()=>{if(isMouseDown)paint(cell);});
+  });
+  updateStats();
+}
+
+function paint(cell){
+  const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+  grids[currentLayer][r][c]=selectedTile?selectedTile.name:null;
+  const tile=selectedTile;
+  cell.style.background=tile?tile.color:'#f5f4f0';
+  cell.innerHTML=tile?`<span class="lbl">${tile.name}</span>`:'';
+  updateStats();
+}
+
+document.addEventListener('mouseup',()=>isMouseDown=false);
+
+function resizeGrid(){
+  const newCols=parseInt(document.getElementById('cfg-cols').value)||6;
+  const newRows=parseInt(document.getElementById('cfg-rows').value)||6;
+  const newGrids=[];
+  for(let l=0;l<MAX_LAYERS;l++){
+    newGrids.push(Array.from({length:newRows},(_,r)=>Array.from({length:newCols},(_,c)=>(grids[l][r]&&grids[l][r][c])||null)));
+  }
+  cols=newCols;rows=newRows;grids=newGrids;renderGrid();
+}
+
+function updateStats(){
+  const counts={};TILES.forEach(t=>counts[t.name]=0);let total=0;
+  grids.forEach(g=>g.forEach(row=>row.forEach(v=>{if(v){counts[v]++;total++;}})));
+  const bad=TILES.filter(t=>counts[t.name]%3!==0);
+  let html='';
+  TILES.forEach(t=>{
+    const ok=counts[t.name]%3===0;
+    html+=`<div class="stat"><div class="stat-val ${ok?'ok':'warn'}">${counts[t.name]}</div><div class="stat-lbl" style="color:${t.color}">${t.name}</div></div>`;
+  });
+  html+=`<div class="stat"><div class="stat-val">${total}</div><div class="stat-lbl">Tổng</div></div>`;
+  if(bad.length>0)html+=`<div class="stat" style="flex-basis:100%"><div class="stat-lbl warn">⚠ ${bad.map(t=>t.name).join(', ')} chưa chia hết cho 3</div></div>`;
+  document.getElementById('stats').innerHTML=html;
+}
+
+function getJSON(){
+  const tiles=[];
+  grids.forEach((g,layerIndex)=>g.forEach((row,r)=>row.forEach((val,c)=>{if(val)tiles.push({itemName:val,x:c,y:r,layerIndex});})));
+  return {levelId:parseInt(document.getElementById('cfg-id').value)||1,timeLimit:parseFloat(document.getElementById('cfg-time').value)||120,maxSlots:parseInt(document.getElementById('cfg-slots').value)||7,tiles};
+}
+
+function exportJSON(){document.getElementById('json-output').value=JSON.stringify(getJSON(),null,2);showToast('Đã export JSON!');}
+
+function downloadJSON(){
+  const data=getJSON();
+  const id=String(data.levelId).padStart(2,'0');
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`level_${id}.json`;a.click();showToast(`Đã tải level_${id}.json`);
+}
+
+function copyJSON(){
+  const ta=document.getElementById('json-output');
+  if(!ta.value)exportJSON();
+  navigator.clipboard.writeText(ta.value).then(()=>showToast('Đã copy!'));
+}
+
+function clearLayer(){grids[currentLayer]=Array.from({length:rows},()=>Array(cols).fill(null));renderGrid();showToast('Đã xóa layer '+currentLayer);}
+function clearAll(){if(!confirm('Reset toàn bộ level?'))return;initGrids();renderGrid();document.getElementById('json-output').value='';showToast('Đã reset!');}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+
+initGrids();buildPalette();buildLayerTabs();renderGrid();selectTile(TILES[0]);
+</script>
+</body>
+</html>
