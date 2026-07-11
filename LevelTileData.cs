@@ -1,10 +1,12 @@
-﻿using UnityEngine;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
-[System.Serializable]
+[Serializable]
 public class LevelTileData
 {
-    public int layerIndex;
+    public string itemName;  // để trống "" = random
     public int x;
     public int y;
-    public ItemData itemData; // để trống = random
+    public int layerIndex;
 }
