@@ -1,0 +1,13 @@
+{
+  "levelId": 1,
+  "timeLimit": 120,
+  "maxSlots": 7,
+  "tiles": [
+    { "itemName": "cat",  "x": 0.0, "y": 0.0, "layer": 0 },
+    { "itemName": "cat",  "x": 1.1, "y": 0.0, "layer": 0 },
+    { "itemName": "cat",  "x": 2.2, "y": 0.0, "layer": 0 },
+    { "itemName": "star", "x": 0.0, "y": 1.1, "layer": 1 },
+    { "itemName": "star", "x": 1.1, "y": 1.1, "layer": 1 },
+    { "itemName": "star", "x": 2.2, "y": 1.1, "layer": 1 }
+  ]
+}
