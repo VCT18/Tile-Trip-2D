@@ -1,34 +1,41 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 
 public class Board : MonoBehaviour
 {
+    public static Board Instance;
+
     public GameObject tilePrefab;
     public ItemData[] availableItems;
     public Transform[] layerParents;
 
     [Header("Layout Settings")]
     public Vector2 tileSize = new Vector2(0.6f, 0.6f);
-    public LevelData[] levels; // kéo cả 3 level vào đây, thay cho currentLevel
 
     private List<ItemData> itemPool = new List<ItemData>();
 
+    void Awake() => Instance = this;
+
     void Start()
     {
-        int randomIndex = Random.Range(0, levels.Length);
-        LoadLevel(levels[randomIndex]);
+        int currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
+        LevelData data = LevelLoader.Instance.LoadLevel(currentLevel);
+        if (data != null) LoadLevel(data);
     }
+
     public void LoadLevel(LevelData level)
     {
+        // Xóa board cũ
         foreach (Transform parent in layerParents)
             foreach (Transform child in parent)
                 Destroy(child.gameObject);
 
+        // Đếm tile random (itemName rỗng)
         int randomTileCount = 0;
         foreach (LevelTileData t in level.tiles)
         {
             if (t == null) continue;
-            if (t.itemData == null) randomTileCount++;
+            if (string.IsNullOrEmpty(t.itemName)) randomTileCount++;
         }
 
         GenerateItemPool(randomTileCount);
@@ -37,18 +44,18 @@ public class Board : MonoBehaviour
         for (int i = 0; i < layerParents.Length; i++)
             layerTiles[i] = new List<Tile>();
 
-        // Tính size của layer 0 làm base
-        Vector2Int baseSize = level.GetLayerSize(0);
+        // Tính size layer 0 làm base để căn giữa
+        Vector2Int baseSize = GetLayerSize(level, 0);
 
         foreach (LevelTileData tileData in level.tiles)
         {
-            // Tính size của layer hiện tại
-            Vector2Int layerSize = level.GetLayerSize(tileData.layerIndex);
+            if (tileData == null) continue;
 
-            // Tính offset để căn giữa so với layer 0
+            // Căn giữa từng layer so với layer 0
+            Vector2Int layerSize = GetLayerSize(level, tileData.layerIndex);
             float offsetX = (baseSize.x - layerSize.x) * tileSize.x * 0.5f;
             float offsetY = (baseSize.y - layerSize.y) * tileSize.y * 0.5f;
-            float offsetZ = -tileData.layerIndex * 0.1f; // Z nhỏ thôi, chỉ để sort
+            float offsetZ = -tileData.layerIndex * 0.1f;
 
             Vector3 pos = new Vector3(
                 tileData.x * tileSize.x + offsetX,
@@ -64,12 +71,17 @@ public class Board : MonoBehaviour
 
             Tile tile = tileObj.GetComponent<Tile>();
 
-            ItemData item = tileData.itemData != null
-                ? tileData.itemData
-                : itemPool[0];
-
-            if (tileData.itemData == null)
+            // Có tên → tìm ItemData, rỗng → lấy từ random pool
+            ItemData item;
+            if (!string.IsNullOrEmpty(tileData.itemName))
+            {
+                item = GetItemByName(tileData.itemName);
+            }
+            else
+            {
+                item = itemPool[0];
                 itemPool.RemoveAt(0);
+            }
 
             tile.Setup(item, tileData.layerIndex * 10);
             tile.layerIndex = tileData.layerIndex;
@@ -77,17 +89,43 @@ public class Board : MonoBehaviour
             layerTiles[tileData.layerIndex].Add(tile);
         }
 
+        // Thiết lập blocking giữa các layer
         for (int i = 0; i < layerParents.Length - 1; i++)
             SetBlockingForLayer(layerTiles[i], layerTiles[i + 1]);
 
+        // Unlock layer trên cùng
         int topLayer = 0;
         for (int i = 0; i < layerTiles.Length; i++)
-        {
-            if (layerTiles[i].Count > 0)
-                topLayer = i;
-        }
+            if (layerTiles[i].Count > 0) topLayer = i;
+
         foreach (Tile t in layerTiles[topLayer])
             t.UnlockTile();
+
+        // Áp dụng settings từ level
+        CollectionBar.Instance.maxSlots = level.maxSlots;
+        GameManager.Instance.RegisterTotalTiles(GetRemainingTileCount());
+    }
+
+    // Thay thế level.GetLayerSize() — tính max x, y của từng layer
+    Vector2Int GetLayerSize(LevelData level, int layerIndex)
+    {
+        int maxX = 0, maxY = 0;
+        foreach (LevelTileData t in level.tiles)
+        {
+            if (t.layerIndex != layerIndex) continue;
+            if (t.x > maxX) maxX = t.x;
+            if (t.y > maxY) maxY = t.y;
+        }
+        return new Vector2Int(maxX + 1, maxY + 1);
+    }
+
+    ItemData GetItemByName(string itemName)
+    {
+        foreach (var item in availableItems)
+            if (item.itemName == itemName) return item;
+
+        Debug.LogWarning($"Không tìm thấy ItemData: '{itemName}', dùng item đầu tiên thay thế");
+        return availableItems[0];
     }
 
     void GenerateItemPool(int totalTiles)
@@ -108,6 +146,7 @@ public class Board : MonoBehaviour
             itemPool.Add(randomItem);
         }
 
+        // Fisher-Yates shuffle
         for (int i = itemPool.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
